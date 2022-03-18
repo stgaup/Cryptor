@@ -23,16 +23,7 @@ namespace Cryptor
                     // class.  This generates a new key and initialization
                     // vector (IV).
                     using Rijndael myRijndael = Rijndael.Create();
-                    if (!(string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(iv)))
-                    {
-                        myRijndael.Key = Convert.FromHexString(key);
-                        myRijndael.IV = Convert.FromHexString(iv);
-                    }
-                    else if (!(string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["key"]) || string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["iv"])))
-                    {
-                        myRijndael.Key = Convert.FromHexString(ConfigurationManager.AppSettings["key"].Replace("-",""));
-                        myRijndael.IV = Convert.FromHexString(ConfigurationManager.AppSettings["iv"].Replace("-",""));
-                    }
+                    SetKeyAndInitializationVector(myRijndael, key, iv);
 
                     Console.WriteLine($"KEY = {BitConverter.ToString(myRijndael.Key)}");
                     Console.WriteLine($"IV = {BitConverter.ToString(myRijndael.IV)}");
@@ -59,17 +50,7 @@ namespace Cryptor
                     // class.  This generates a new key and initialization
                     // vector (IV).
                     using Rijndael myRijndael = Rijndael.Create();
-                    if (!(string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(iv)))
-                    {
-                        myRijndael.Key = Convert.FromHexString(key);
-                        myRijndael.IV = Convert.FromHexString(iv);
-                    }
-                    else if(!(string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["key"]) || string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["iv"])))
-                    {
-                        myRijndael.Key = Convert.FromHexString(ConfigurationManager.AppSettings["key"].Replace("-",""));
-                        myRijndael.IV = Convert.FromHexString(ConfigurationManager.AppSettings["iv"].Replace("-",""));
-                    }
-
+                    SetKeyAndInitializationVector(myRijndael, key, iv);
 
                     Console.WriteLine($"KEY = {BitConverter.ToString(myRijndael.Key)}");
                     Console.WriteLine($"IV = {BitConverter.ToString(myRijndael.IV)}");
@@ -107,28 +88,26 @@ namespace Cryptor
                 byte[] encrypted;
                 // Create an Rijndael object
                 // with the specified key and IV.
-                using (Rijndael rijAlg = Rijndael.Create())
+                using Rijndael rijAlg = Rijndael.Create();
+                rijAlg.Key = Key;
+                rijAlg.IV = IV;
+                rijAlg.Padding = PaddingMode.PKCS7;
+
+                // Create an encryptor to perform the stream transform.
+                ICryptoTransform encryptor = rijAlg.CreateEncryptor(rijAlg.Key, rijAlg.IV);
+
+                // Create the streams used for encryption.
+                using (MemoryStream msEncrypt = new MemoryStream())
                 {
-                    rijAlg.Key = Key;
-                    rijAlg.IV = IV;
-                    rijAlg.Padding = PaddingMode.PKCS7;
-
-                    // Create an encryptor to perform the stream transform.
-                    ICryptoTransform encryptor = rijAlg.CreateEncryptor(rijAlg.Key, rijAlg.IV);
-
-                    // Create the streams used for encryption.
-                    using (MemoryStream msEncrypt = new MemoryStream())
+                    using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
                     {
-                        using (CryptoStream csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                        using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
                         {
-                            using (StreamWriter swEncrypt = new StreamWriter(csEncrypt))
-                            {
 
-                                //Write all data to the stream.
-                                swEncrypt.Write(plainText);
-                            }
-                            encrypted = msEncrypt.ToArray();
+                            //Write all data to the stream.
+                            swEncrypt.Write(plainText);
                         }
+                        encrypted = msEncrypt.ToArray();
                     }
                 }
 
@@ -152,32 +131,45 @@ namespace Cryptor
 
                 // Create an Rijndael object
                 // with the specified key and IV.
-                using (Rijndael rijAlg = Rijndael.Create())
+                using Rijndael rijAlg = Rijndael.Create();
+                rijAlg.Key = Key;
+                rijAlg.IV = IV;
+                rijAlg.Padding = PaddingMode.PKCS7;
+
+                // Create a decryptor to perform the stream transform.
+                ICryptoTransform decryptor = rijAlg.CreateDecryptor(rijAlg.Key, rijAlg.IV);
+
+                // Create the streams used for decryption.
+                using (MemoryStream msDecrypt = new MemoryStream(cipherText))
                 {
-                    rijAlg.Key = Key;
-                    rijAlg.IV = IV;
-                    rijAlg.Padding = PaddingMode.PKCS7;
-
-                    // Create a decryptor to perform the stream transform.
-                    ICryptoTransform decryptor = rijAlg.CreateDecryptor(rijAlg.Key, rijAlg.IV);
-
-                    // Create the streams used for decryption.
-                    using (MemoryStream msDecrypt = new MemoryStream(cipherText))
+                    using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
                     {
-                        using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
+                        using (StreamReader srDecrypt = new StreamReader(csDecrypt))
                         {
-                            using (StreamReader srDecrypt = new StreamReader(csDecrypt))
-                            {
 
-                                // Read the decrypted bytes from the decrypting stream
-                                // and place them in a string.
-                                plaintext = srDecrypt.ReadToEnd();
-                            }
+                            // Read the decrypted bytes from the decrypting stream
+                            // and place them in a string.
+                            plaintext = srDecrypt.ReadToEnd();
                         }
                     }
                 }
 
                 return plaintext;
+            }
+        }
+
+        private static void SetKeyAndInitializationVector(Rijndael myRijndael, string key, string iv)
+        {
+            if (!(string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(iv)))
+            {
+                myRijndael.Key = Convert.FromHexString(key);
+                myRijndael.IV = Convert.FromHexString(iv);
+            }
+            else if (!(string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["key"]) ||
+                       string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["iv"])))
+            {
+                myRijndael.Key = Convert.FromHexString(ConfigurationManager.AppSettings["key"].Replace("-", ""));
+                myRijndael.IV = Convert.FromHexString(ConfigurationManager.AppSettings["iv"].Replace("-", ""));
             }
         }
     }
