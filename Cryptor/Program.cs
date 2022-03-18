@@ -26,7 +26,14 @@ namespace Cryptor
                 try
                 {
                     using Rijndael myRijndael = Rijndael.Create();
-                    SetKeyAndInitializationVector(myRijndael, key, iv);
+                    var keyAndIvWasProvided = SetKeyAndInitializationVector(myRijndael, key, iv);
+                    if (!keyAndIvWasProvided)
+                    {
+                        Console.WriteLine("No Key and/or IV was found/provided, so generated new ones:");
+                        Console.WriteLine($"KEY = {BitConverter.ToString(myRijndael.Key)}");
+                        Console.WriteLine($"IV = {BitConverter.ToString(myRijndael.IV)}");
+                        Console.WriteLine("You may want to copy them and add them to the App.config file.");
+                    }
 
                     // Encrypt the string to an array of bytes.
                     byte[] encrypted = EncryptStringToBytes(input, myRijndael.Key, myRijndael.IV);
@@ -69,8 +76,8 @@ namespace Cryptor
             {
                 Console.WriteLine("Cryptor v0.1");
                 Console.WriteLine("USAGE:");
-                Console.WriteLine("  cryptor -e whatToEncrypt");
-                Console.WriteLine("  cryptor -d whatToDecrypt");
+                Console.WriteLine("  cryptor -e whatToEncrypt [Key] [IV]");
+                Console.WriteLine("  cryptor -d whatToDecrypt [Key] [IV]");
             }
 
             static byte[] EncryptStringToBytes(string plainText, byte[] Key, byte[] IV)
@@ -155,19 +162,22 @@ namespace Cryptor
             }
         }
 
-        private static void SetKeyAndInitializationVector(Rijndael myRijndael, string key, string iv)
+        private static bool SetKeyAndInitializationVector(Rijndael myRijndael, string key, string iv)
         {
             if (!(string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(iv)))
             {
                 myRijndael.Key = Convert.FromHexString(key);
                 myRijndael.IV = Convert.FromHexString(iv);
+                return true;
             }
-            else if (!(string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["key"]) ||
+            if (!(string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["key"]) ||
                        string.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["iv"])))
             {
                 myRijndael.Key = Convert.FromHexString(ConfigurationManager.AppSettings["key"].Replace("-", ""));
                 myRijndael.IV = Convert.FromHexString(ConfigurationManager.AppSettings["iv"].Replace("-", ""));
+                return true;
             }
+            return false;
         }
     }
 }
