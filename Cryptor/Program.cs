@@ -12,6 +12,7 @@ namespace Cryptor
             if (args.Length == 0)
             {
                 DisplayHelp();
+                return;
             }
 
             var action = args[0];
