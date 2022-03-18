@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Configuration;
+using System.Drawing.Text;
 using System.IO;
 using System.Security.Cryptography;
 
@@ -9,6 +10,11 @@ namespace Cryptor
     {
         static void Main(string[] args)
         {
+            if (args.Length == 0)
+            {
+                DisplayHelp();
+            }
+
             var action = args[0];
             var input = args[1];
 
@@ -19,22 +25,14 @@ namespace Cryptor
             {
                 try
                 {
-                    // Create a new instance of the Rijndael
-                    // class.  This generates a new key and initialization
-                    // vector (IV).
                     using Rijndael myRijndael = Rijndael.Create();
                     SetKeyAndInitializationVector(myRijndael, key, iv);
-
-                    Console.WriteLine($"KEY = {BitConverter.ToString(myRijndael.Key)}");
-                    Console.WriteLine($"IV = {BitConverter.ToString(myRijndael.IV)}");
 
                     // Encrypt the string to an array of bytes.
                     byte[] encrypted = EncryptStringToBytes(input, myRijndael.Key, myRijndael.IV);
                     var chars = Convert.ToBase64String(encrypted);
-                    for (var i = 0; i < encrypted.Length; i++)
-                    {
-                        Console.WriteLine($"{encrypted[i]} : {chars[i]}");
-                    }
+                    
+                    //display encrypted text
                     Console.WriteLine(string.Join("", chars));
                 }
                 catch (Exception e)
@@ -46,21 +44,15 @@ namespace Cryptor
             {
                 try
                 {
-                    // Create a new instance of the Rijndael
-                    // class.  This generates a new key and initialization
-                    // vector (IV).
                     using Rijndael myRijndael = Rijndael.Create();
                     SetKeyAndInitializationVector(myRijndael, key, iv);
-
-                    Console.WriteLine($"KEY = {BitConverter.ToString(myRijndael.Key)}");
-                    Console.WriteLine($"IV = {BitConverter.ToString(myRijndael.IV)}");
 
                     // Decrypt the bytes to a string.
                     var base64decoded = Convert.FromBase64CharArray(input.ToCharArray(), 0, input.Length);
                     string decryptedText = DecryptStringFromBytes(
                         base64decoded, myRijndael.Key, myRijndael.IV);
 
-                    //Display the original data and the decrypted data.
+                    //Display decrypted text
                     Console.WriteLine(decryptedText);
                 }
                 catch (Exception e)
@@ -70,8 +62,13 @@ namespace Cryptor
             }
             else
             {
+                DisplayHelp();
+            }
+
+            static void DisplayHelp()
+            {
                 Console.WriteLine("Cryptor v0.1");
-                Console.WriteLine("USAGE:");  
+                Console.WriteLine("USAGE:");
                 Console.WriteLine("  cryptor -e whatToEncrypt");
                 Console.WriteLine("  cryptor -d whatToDecrypt");
             }
